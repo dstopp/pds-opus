@@ -1,8 +1,7 @@
 ################################################################################
 # populate_obs_instrument_COUVIS.py
 #
-# Routines to populate fields specific to COUVIS. It may change fields in
-# obs_general, obs_mission_cassini, or obs_instrument_COUVIS.
+# Routines to populate fields specific to COUVIS.
 ################################################################################
 
 # Ordering:
@@ -156,13 +155,35 @@ def populate_obs_general_COUVIS_time1(**kwargs):
     metadata = kwargs['metadata']
     index_row = metadata['index_row']
     start_time = import_util.safe_column(index_row, 'START_TIME')
-    return start_time
+
+    if start_time is None:
+        return None
+
+    try:
+        start_time_sec = julian.tai_from_iso(start_time)
+    except:
+        import_util.log_nonrepeating_error(
+            f'Bad start time format "{start_time}"')
+        return None
+
+    return julian.iso_from_tai(start_time_sec, digits=3, ymd=True)
 
 def populate_obs_general_COUVIS_time2(**kwargs):
     metadata = kwargs['metadata']
     index_row = metadata['index_row']
     stop_time = import_util.safe_column(index_row, 'STOP_TIME')
-    return stop_time
+
+    if stop_time is None:
+        return None
+
+    try:
+        stop_time_sec = julian.tai_from_iso(stop_time)
+    except:
+        import_util.log_nonrepeating_error(
+            f'Bad stop time format "{stop_time}"')
+        return None
+
+    return julian.iso_from_tai(stop_time_sec, digits=3, ymd=True)
 
 def populate_obs_general_COUVIS_target_name(**kwargs):
     return helper_cassini_target_name(**kwargs)
@@ -532,10 +553,6 @@ def populate_obs_mission_cassini_COUVIS_spacecraft_clock_count1(**kwargs):
         import_util.log_nonrepeating_error(
             f'Badly formatted SPACECRAFT_CLOCK_START_COUNT "{count}"')
         return None
-    # See pds-opus issue #336
-    count = count.replace('.320', '.032')
-    count = count.replace('.640', '.064')
-    count = count.replace('.960', '.096')
     return count
 
 # There is no SPACECRAFT_CLOCK_STOP_COUNT for COUVIS so we have to compute it.
@@ -545,6 +562,7 @@ def populate_obs_mission_cassini_COUVIS_spacecraft_clock_count2(**kwargs):
     cassini_row = metadata['obs_mission_cassini_row']
     general_row = metadata['obs_general_row']
     count = cassini_row['spacecraft_clock_count1']
+    count = helper_fix_cassini_sclk(count)
     time1 = general_row['time_sec1']
     time2 = general_row['time_sec2']
     try:
