@@ -296,7 +296,7 @@ var o_cart = {
     },
 
     isIn: function(opusId) {
-        return  $("[data-id='"+opusId+"'].thumbnail-container").hasClass("in");
+        return  $("[data-id='"+opusId+"'].thumbnail-container").hasClass("op-in-cart");
     },
 
     emptyCart: function(returnToSearch=false) {
@@ -314,8 +314,8 @@ var o_cart = {
         });
 
         let buttonInfo = o_browse.cartButtonInfo("in");
-        $(".thumbnail-container.in [data-icon=cart]").html(`<i class="${buttonInfo.icon} fa-xs"></i>`);
-        $(".thumbnail-container.in").removeClass("in");
+        $(".thumbnail-container.op-in-cart [data-icon=cart]").html(`<i class="${buttonInfo.icon} fa-xs"></i>`);
+        $(".thumbnail-container.op-in-cart").removeClass("op-in-cart");
         $("#dataTable input").prop("checked", false);
     },
 
@@ -324,8 +324,8 @@ var o_cart = {
 
         // handle it as range
         if (toOpusId != undefined) {
-            let tab = o_browse.getViewInfo().namespace;
-            let action = (fromElem.hasClass("in") ? "removerange" : "addrange");
+            let tab = `#${opus.prefs.view}`;
+            let action = (fromElem.hasClass("op-in-cart") ? "removerange" : "addrange");
             let toElem = o_browse.getGalleryElement(toOpusId);
             let fromIndex = $(`${tab} .thumbnail-container`).index(fromElem);
             let toIndex = $(`${tab} .thumbnail-container`).index(toElem);
@@ -335,16 +335,18 @@ var o_cart = {
                 [fromIndex, toIndex] = [toIndex, fromIndex];
             }
             let length = toIndex - fromIndex+1;
+            /// NOTE: we need to mark the elements on BOTH browse and cart page
             let elementArray = $(`${tab} .thumbnail-container`);
             let opusIdRange = $(elementArray[fromIndex]).data("id") + ","+ $(elementArray[toIndex]).data("id");
             $.each(elementArray.splice(fromIndex, length), function(index, elem) {
                 let opusId = $(elem).data("id");
                 let status = "in";
                 if (action == "addrange") {
-                    $(elem).addClass("in");
+                    $(`.thumbnail-container[data-id=${opusId}]`).addClass("op-in-cart");
                     status = "out"; // this is only so that we can make sure the icon is a trash can
                 } else {
-                    $(elem).removeClass("in");
+                    $(`.thumbnail-container[data-id=${opusId}]`).removeClass("op-in-cart");
+                    $(`.thumbnail-container[data-id=${opusId}]`).addClass("op-remove-from-cart");
                 }
                 $("input[name="+opusId+"]").prop("checked", (action == "addrange"));
                 o_browse.updateCartIcon(opusId, status);
@@ -360,10 +362,12 @@ var o_cart = {
             o_browse.undoRangeSelect(tab);
         } else {
             // note - doing it this way handles the obs on the browse tab at the same time
-            let action = (fromElem.hasClass("in") ? "remove" : "add");
+            let action = (fromElem.hasClass("op-in-cart") ? "remove" : "add");
 
-            $(`.thumbnail-container[data-id=${fromOpusId}]`).toggleClass("in");
+            $(`.thumbnail-container[data-id=${fromOpusId}]`).toggleClass("op-in-cart");
             $("input[name="+fromOpusId+"]").prop("checked", (action === "add"));
+
+            $(`#cart .thumbnail-container[data-id=${fromOpusId}]`).toggleClass("op-remove-from-cart");
 
             o_browse.updateCartIcon(fromOpusId, action);
             o_cart.editCart(fromOpusId, action);

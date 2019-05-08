@@ -140,7 +140,7 @@ var o_browse = {
             o_browse.hideMenu();
 
             let opusId = $(this).parent().data("id");
-            let startElem = $(e.delegateTarget).find(".selected");
+            let startElem = $(e.delegateTarget).find(".op-selected");
 
             // Detecting ctrl (windows) / meta (mac) key.
             if (e.ctrlKey || e.metaKey) {
@@ -172,7 +172,7 @@ var o_browse = {
                 return false;
             }
             let opusId = $(this).val();
-            let startElem = $(`#${opus.prefs.view} .thumb.gallery`).find(".selected");
+            let startElem = $(`#${opus.prefs.view} .thumb.gallery`).find(".op-selected");
 
             if (e.shiftKey) {
                 if (startElem.length == 0) {
@@ -194,7 +194,7 @@ var o_browse = {
             e.preventDefault();
             o_browse.hideMenu();
 
-            let startElem = $(`#${opus.prefs.view} .thumb.gallery`).find(".selected");
+            let startElem = $(`#${opus.prefs.view} .thumb.gallery`).find(".op-selected");
 
             // Detecting ctrl (windows) / meta (mac) key.
             if (e.ctrlKey || e.metaKey) {
@@ -259,8 +259,7 @@ var o_browse = {
         });
 
         $(".app-body").on("hide.bs.modal", "#galleryView", function(e) {
-            let namespace = o_browse.getViewInfo().namespace;
-            $(namespace).find(".modal-show").removeClass("modal-show");
+            $(`#${opus.prefs.view}`).find(".modal-show").removeClass("modal-show");
         });
 
         $('#galleryView').on("click", "a.select", function(e) {
@@ -416,7 +415,7 @@ var o_browse = {
                     o_browse.undoRangeSelect();
                     break;
                 case "range": // begin/end range
-                    let startElem = $(`#${opus.prefs.view}`).find(".selected");
+                    let startElem = $(`#${opus.prefs.view}`).find(".op-selected");
                     if (startElem.length == 0) {
                         o_browse.startRangeSelect(opusId);
                         //o_cart.toggleInCart(opusId);
@@ -680,7 +679,7 @@ var o_browse = {
 
         // use the state of the current selected observation to set the icons if one has been selected,
         // otherwise use the state of the current observation - this will identify what will happen to the range
-        let selectedElem = $(`#${opus.prefs.view}`).find(".selected");
+        let selectedElem = $(`#${opus.prefs.view}`).find(".op-selected");
         if (selectedElem.length != 0) {
             inCart = (o_cart.isIn($(selectedElem).data("id")) ? "" : "in");
         }
@@ -736,9 +735,9 @@ var o_browse = {
     },
 
     undoRangeSelect: function() {
-        let startElem = $(`#${opus.prefs.view}`).find(".selected");
+        let startElem = $(`#${opus.prefs.view}`).find(".op-selected");
         if (startElem.length) {
-            $(startElem).removeClass("selected hvr-ripple-in b-a-2");
+            $(startElem).removeClass("op-selected hvr-ripple-in b-a-2");
             let opusId = $(startElem).data("id");
             o_browse.getDataTableInputElement(opusId).removeClass("hvr-ripple-in b-a-2");
         }
@@ -1022,7 +1021,7 @@ var o_browse = {
 
                 // gallery
                 let images = item.images;
-                galleryHtml += `<div class="thumbnail-container ${(item.in_cart ? ' in' : '')}" data-id="${opusId}" data-obs="${item.obs_num}">`;
+                galleryHtml += `<div class="thumbnail-container ${(item.in_cart ? "op-in-cart" : "")}" data-id="${opusId}" data-obs="${item.obs_num}">`;
                 galleryHtml += `<a href="#" class="thumbnail" data-image="${images.full.url}">`;
                 galleryHtml += `<img class="img-thumbnail img-fluid" src="${images.thumb.url}" alt="${images.thumb.alt_text}" title="${item.obs_num} - ${opusId}\r\nClick to enlarge">`;
                 // whenever the user clicks an image to show the modal, we need to highlight the selected image w/an icon
@@ -1210,7 +1209,7 @@ var o_browse = {
 
         function deleteCachedObservation(index) {
             // don't delete the metadata if the observation is in the cart
-            if (!galleryObsElem.eq(index).hasClass("in")) {
+            if (!galleryObsElem.eq(index).hasClass("op-in-cart")) {
                 let delOpusId = galleryObsElem.eq(index).data("id");
                 delete o_browse.galleryData[delOpusId];
             }
