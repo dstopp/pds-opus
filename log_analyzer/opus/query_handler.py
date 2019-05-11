@@ -71,7 +71,7 @@ class QueryHandler:
 
         search_slug_info: SearchSlugInfo = defaultdict(list)
         for slug, value in query.items():
-            slug_info = self._slug_map.get_info_for_search_slug(slug)
+            slug_info = self._slug_map.get_info_for_search_slug(slug, value)
             if slug_info:
                 family = slug_info.family
                 search_slug_info[family].append((slug_info, value))
@@ -108,7 +108,7 @@ class QueryHandler:
             browse = query.get('cart_browse', ''), query.get('browse', '')
 
             if startobs[is_browsing]:
-                page_type, info, previous_info = 'Starting observation', startobs[is_browsing], self._previous_startobss
+                page_type, info, previous_info = 'Starting Observation', startobs[is_browsing], self._previous_startobss
             elif page:
                 page_type, info, previous_info = 'Page', page, self._previous_pages
             else:
@@ -140,6 +140,7 @@ class QueryHandler:
         return result, url
 
     def __handle_search_info(self, old_info: SearchSlugInfo, new_info: SearchSlugInfo, result: List[str]) -> None:
+        """Handles info for the contents of search slugs"""
         all_search_families = set(old_info.keys()).union(new_info.keys())
 
         if not new_info:
@@ -164,71 +165,73 @@ class QueryHandler:
         result.extend(changed_searches)
 
     def __handle_search_remove(self, result: List[str], family: slug.Family) -> None:
+        """handle a search term that has been removed"""
         self._session_info.changed_search_slugs()
         result.append(f'Remove Search: "{family.label}"')
 
     def __handle_search_add(self, result: List[str], family: slug.Family, new_info: SearchSlugInfo) -> None:
+        """handle a search term that has been added"""
         self._session_info.changed_search_slugs()
         if family.is_singleton():
-            assert len(new_info[family]) == 1
-            slug_info, value = new_info[family][0]
-            assert family.label == slug_info.label
-            postscript = self.__get_postscript(slug_info.flags)  # is html-aware
-            if self._uses_html:
-                result.append(self.safe_format('Add Search: "{}" = <mark><ins>{}</ins></mark>{}',
-                                               family.label, self.__format_search_value(value), postscript))
-            else:
-                result.append(f'Add Search:    "{family.label}" = "{value}"{postscript}')
-        else:
-            new_min, new_max, new_qtype, flags = self.__parse_search_family(new_info[family])
+            new_value, new_qtype, flags = self.__parse_search_family_string(new_info[family])
             postscript = self.__get_postscript(flags)  # is html-aware
-            if self._uses_html:
-                def always_mark(which: str, value: Optional[str]) -> str:
-                    return self.safe_format('<mark><ins>{}:{}</ins></mark>', which, self.__format_search_value(value))
-
-                result.append(self.safe_format('Add Search: &quot;{}&quot; = ({}, {}, {}){}',
-                                               family.label,
-                                               always_mark(family.min, new_min),
-                                               always_mark(family.max, new_max),
-                                               always_mark('qtype', new_qtype),
-                                               postscript))
+            if not new_qtype:
+                if self._uses_html:
+                    result.append(self.safe_format('Add Search: "{}" = <mark><ins>{}</ins></mark>{}',
+                                                   family.label, self.__format_search_value(new_value), postscript))
+                else:
+                    result.append(f'Add Search:    "{family.label}" = "{new_value}"{postscript}')
+                return
             else:
-                new_value = (f'({family.min.upper()}:{self.__format_search_value(new_min)},'
-                             f' {family.max.upper()}:{self.__format_search_value(new_max)}, '
-                             f'QTYPE:{self.__format_search_value(new_qtype)})')
-                result.append(f'Add Search:    "{family.label}" = {new_value}{postscript}')
+                fields = [('value', new_value), ('qtype', new_qtype)]
+                # continued below, after the else
+        else:
+            new_min, new_max, new_qtype, flags = self.__parse_search_family_numeric(new_info[family])
+            postscript = self.__get_postscript(flags)  # is html-aware
+            fields = [(family.min, new_min), (family.max, new_max), ('qtype', new_qtype)]
+
+        if self._uses_html:
+            joined_info = Markup(', ').join(
+                self.safe_format('<mark><ins>{}:{}</ins></mark>', name, self.__format_search_value(value))
+                for (name, value) in fields)
+            result.append(self.safe_format('Add Search: &quot;{}&quot; = ({}){}',
+                                           family.label, joined_info, postscript))
+        else:
+            joined_info = ", ".join(f'{name.upper()}:{self.__format_search_value(value)}' for (name, value) in fields)
+            result.append(f'Add Search:    "{family.label}" = ({joined_info}){postscript}')
 
     def __handle_search_change(self, result: List[str], family: slug.Family, old_info: SearchSlugInfo,
                                new_info: SearchSlugInfo) -> None:
         if family.is_singleton():
-            assert len(old_info[family]) == 1
-            assert len(new_info[family]) == 1
-            old_slug_info, old_value = old_info[family][0]
-            new_slug_info, new_value = new_info[family][0]
-            self.__slug_value_change(new_slug_info.label, old_value, new_value, result)
-        else:
-            old_min, old_max, old_qtype, _ = self.__parse_search_family(old_info[family])
-            new_min, new_max, new_qtype, _ = self.__parse_search_family(new_info[family])
-            if (old_min, old_max, old_qtype) == (new_min, new_max, new_qtype):
-                pass
-            elif self._uses_html:
-                def maybe_mark(tag: str, old: Optional[str], new: Optional[str]) -> str:
-                    fmt = '{}:{}' if old == new else '<mark>{}:{}</mark>'
-                    return self.safe_format(fmt, tag, self.__format_search_value(new))
-
-                result.append(
-                    self.safe_format('Change Search: &quot;{}&quot;: ({}, {}, {})', family.label,
-                                     maybe_mark(family.min, old_min, new_min),
-                                     maybe_mark(family.max, old_max, new_max),
-                                     maybe_mark('qtype', old_qtype, new_qtype)))
+            old_value, old_qtype, _ = self.__parse_search_family_string(old_info[family])
+            new_value, new_qtype, _ = self.__parse_search_family_string(new_info[family])
+            if (old_value, old_qtype) == (new_value, new_qtype):
+                return
+            elif not old_qtype and not new_qtype:
+                return self.__slug_value_change(family.label, old_value, new_value, result)
             else:
-                min_name = family.min if old_min == new_min else family.min.upper()
-                max_name = family.max if old_max == new_max else family.max.upper()
-                qtype_name = 'qtype' if old_qtype == new_qtype else 'QTYPE'
-                new_value = (f'({min_name}:{self.__format_search_value(new_min)},'
-                             f' {max_name}:{self.__format_search_value(new_max)},'
-                             f' {qtype_name}:{self.__format_search_value(new_qtype)})')
-                result.append(f'Change Search: "{family.label}" = {new_value}')
+                fields = [('value', old_value, new_value), ('qtype', old_qtype, new_qtype)]
+        else:
+            old_min, old_max, old_qtype, _ = self.__parse_search_family_numeric(old_info[family])
+            new_min, new_max, new_qtype, _ = self.__parse_search_family_numeric(new_info[family])
+            if (old_min, old_max, old_qtype) == (new_min, new_max, new_qtype):
+                return
+            else:
+                fields = [(family.min, old_min, new_min), (family.max, old_max, new_max), ('qtype', old_qtype, new_qtype)]
+
+        if self._uses_html:
+            def maybe_mark(tag: str, old: Optional[str], new: Optional[str]) -> str:
+                fmt = '{}:{}' if old == new else '<mark>{}:{}</mark>'
+                return self.safe_format(fmt, tag, self.__format_search_value(new))
+
+            joined_info = Markup(', ').join(maybe_mark(tag, old, new) for (tag, old, new) in fields)
+            result.append(self.safe_format('Change Search: &quot;{}&quot;: ({})', family.label, joined_info))
+        else:
+            def maybe_mark(tag: str, old: Optional[str], new: Optional[str]) -> str:
+                return f'{tag if old == new else tag.upper()}:{self.__format_search_value(new)}'
+
+            joined_info = ', '.join(maybe_mark(tag, old, new) for (tag, old, new) in fields)
+            result.append(f'Change Search: "{family.label}" = ({joined_info})')
 
     def __get_column_info(self, old_info: Optional[ColumnSlugInfo], new_info: ColumnSlugInfo,
                           result: List[str]) -> None:
@@ -350,13 +353,22 @@ class QueryHandler:
         else:
             return f' **{flags.pretty_print()}**'
 
-    def __parse_search_family(self, pairs: List[Tuple[slug.Info, str]]) -> \
+    def __parse_search_family_numeric(self, pairs: List[Tuple[slug.Info, str]]) -> \
             Tuple[Optional[str], Optional[str], Optional[str], slug.Flags]:
         mapping = {slug_info.family_type: value for slug_info, value in pairs}  # family_type to value
         return (
             mapping.get(slug.FamilyType.MIN), mapping.get(slug.FamilyType.MAX), mapping.get(slug.FamilyType.QTYPE),
             reduce(operator.or_, (slug_info.flags for (slug_info, _) in pairs))
         )
+
+    def __parse_search_family_string(self, pairs: List[Tuple[slug.Info, str]]) -> \
+            Tuple[Optional[str], Optional[str], slug.Flags]:
+        mapping = {slug_info.family_type: value for slug_info, value in pairs}  # family_type to value
+        return (
+            mapping.get(slug.FamilyType.SINGLETON), mapping.get(slug.FamilyType.QTYPE),
+            reduce(operator.or_, (slug_info.flags for (slug_info, _) in pairs))
+        )
+
 
     def safe_format(self, format_string: str, *args: Any) -> str:
         return cast(str, self._session_info.safe_format(format_string, *args))
