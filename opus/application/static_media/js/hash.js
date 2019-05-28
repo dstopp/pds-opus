@@ -35,17 +35,8 @@ var o_hash = {
             }
         }
         $.each(opus.prefs, function(key, value) {
-                switch (key) {
-                    case "browse":
-                        value = (value == "dataTable" ? "data" : value);
-                        hash.push(key + "=" + value);
-                        break;
-
-                    default:
-                        hash.push(key + "=" + opus.prefs[key]);
-                }
-            }
-        );
+            hash.push(key + "=" + value);
+        });
 
         if (updateURL) {
             window.location.hash = '/' + hash.join('&');
@@ -153,9 +144,6 @@ var o_hash = {
                 // look for prefs
                 else if (slug in opus.prefs) {
                     switch (slug) {
-                        case "browse":
-                            opus.prefs[slug] = (value == "data" ? "dataTable" : value);
-                            break;
                         case "widgets":
                             opus.prefs[slug] = value.replace(/\s+/g, '').split(',');
                             break;
