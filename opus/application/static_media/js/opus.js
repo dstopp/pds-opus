@@ -29,6 +29,8 @@ var opus = {
 
     // Minimum height of any scrollbar
     minimumPSLength: 30,
+    // Fixed scrollbar length for gallery & table view
+    galleryAndTablePSLength: 100,
 
     qtypeRangeDefault: "any",
     qtypeStringDefault: "contains",
@@ -37,7 +39,7 @@ var opus = {
     defaultWidgets: DEFAULT_WIDGETS.split(","),
 
     mainTimerInterval: 1000,
-
+    spinnerDelay: 250, // The amount of time to wait before showing a spinner in case the API returns quickly
 
     // avoiding race conditions in ajax calls
     lastAllNormalizeRequestNo: 0,
@@ -70,7 +72,6 @@ var opus = {
     extras: {},            // extras to the query: qtypes
     lastSelections: {},    // lastXXX are used to monitor changes
     lastExtras: {},
-    resultCount: 0,
 
     allInputsValid: true,
 
@@ -89,6 +90,18 @@ var opus = {
     // updates things
     mainTimer: false,
 
+    // store the browser version and width supported by OPUS
+    browserSupport: {
+        "firefox": 59,
+        "chrome": 56,
+        "opera": 42,
+        "safari": 10.1,
+        "width": 600,
+        "height": 200
+    },
+
+    // current splash page version for storing in the visited cookie
+    splashVersion: 1,
 
     //------------------------------------------------------------------------------------
     // Debugging support
@@ -172,7 +185,7 @@ var opus = {
             } else {
                 // Otherwise, this was just a user change to one of the search criteria inside
                 // the UI, so erase the previous data and reload the results.
-                o_browse.resetData();
+                o_browse.clearObservationData();
             }
         }
 
@@ -276,9 +289,9 @@ var opus = {
          * badge(s).
          */
 
-        opus.resultCount = resultCount;
+        o_browse.totalObsCount = resultCount;
         $("#op-result-count").fadeOut("fast", function() {
-            $(this).html(o_utils.addCommas(opus.resultCount)).fadeIn("fast");
+            $(this).html(o_utils.addCommas(o_browse.totalObsCount)).fadeIn("fast");
             $(this).removeClass("browse_results_invalid");
         });
     },
@@ -411,7 +424,7 @@ var opus = {
         // Reset the search query and return to the Search tab
         opus.selections = {};
         opus.extras = {};
-        o_browse.resetData();
+        o_browse.clearObservationData();
         opus.changeTab('search');
 
         // Enable or disable the 'Reset Search' and 'Reset Search and Metadata' buttons
@@ -552,6 +565,7 @@ var opus = {
             adjustProductInfoHeightDB();
             adjustDetailHeightDB();
             adjustHelpPanelHeightDB();
+            opus.checkBrowserSize();
         });
 
         // Add the navbar clicking behaviors, selecting which tab to view
@@ -595,6 +609,10 @@ var opus = {
                 case "tutorial":
                     url += "tutorial.html";
                     header = "A Brief Tutorial";
+                    break;
+                case "gettingStarted":
+                    url += "gettingstarted.html";
+                    header = "Getting Started";
                     break;
                 case "feedback":
                     url = "https://pds-rings.seti.org/cgi-bin/comments/form.pl";
@@ -646,7 +664,13 @@ var opus = {
         $(document).on("keydown click", function(e) {
             if ((e.which || e.keyCode) == 27) {
                 // ESC key - close modals and help panel
-                $(".op-confirm-modal").modal('hide');
+                // Don't close "#op-browser-version-msg" and "#op-browser-size-msg"
+                $.each($(".op-confirm-modal"), function(idx, confirmModal) {
+                    if ($(confirmModal).data("action") === "esc") {
+                        $(confirmModal).modal("hide");
+                    }
+                });
+
                 opus.hideHelpPanel();
             }
         });
@@ -667,7 +691,7 @@ var opus = {
                             o_cart.emptyCart();
                             break;
                     }
-                    $(".modal").modal("hide");
+                    $(`#${target}`).modal("hide");
                     break;
 
                 case "cancel":
@@ -678,7 +702,7 @@ var opus = {
                             $(".op-user-msg").removeClass("op-show-msg");
                             break;
                     }
-                    $(".modal").modal("hide");
+                    $(`#${target}`).modal("hide");
                     break;
             }
         });
@@ -695,6 +719,11 @@ var opus = {
         opus.prefs.widgets = [];
         o_widgets.updateWidgetCookies();
 
+        // probably not needed, just added as a precaution.
+        opus.force_load = true;
+
+        // set these to the current hash on opus init
+        [opus.lastSelections, opus.lastExtras] = o_hash.getSelectionsExtrasFromHash();
 
         // Initialize opus.prefs from the URL hash
         o_hash.initFromHash();
@@ -724,12 +753,122 @@ var opus = {
         };
 
         opus.triggerNavbarClick();
-    }
+    },
 
+    isBrowserSupported: function() {
+        /**
+         * Check supported browser versions and display a modal to
+         * inform the user if that version is not supprted.
+         */
+        let browserName, browserVersion, matchObj;
+        let userAgent = navigator.userAgent;
+
+        if (userAgent.indexOf("Firefox") > -1) {
+            // Example output:
+            // Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14; rv:66.0)
+            // Gecko/20100101 Firefox/66.0
+            matchObj = userAgent.match(/Firefox\/(\d+.\d+)/);
+            browserName = "Firefox";
+            browserVersion = matchObj[1];
+        } else if (userAgent.indexOf("OPR") > -1) {
+            // userAgent example output:
+            // Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_4) AppleWebKit/537.36
+            // (KHTML, like Gecko) Chrome/73.0.3683.103 Safari/537.36 OPR/60.0.3255.95
+            matchObj = userAgent.match(/OPR\/(\d+.\d+)/);
+            browserName = "Opera";
+            browserVersion = matchObj[1];
+        } else if (userAgent.indexOf("Chrome") > -1 && userAgent.indexOf("Edge") === -1 &&
+                   userAgent.indexOf("Edg") === -1) {
+            // userAgent example output:
+            // Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_4) AppleWebKit/537.36
+            // (KHTML, like Gecko) Chrome/74.0.3729.169 Safari/537.36
+            matchObj = userAgent.match(/Chrome\/(\d+.\d+)/);
+            browserName = "Chrome";
+            browserVersion = matchObj[1];
+        } else if (userAgent.indexOf("Version") > -1) {
+            // userAgent example output:
+            // Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_4) AppleWebKit/605.1.15
+            // (KHTML, like Gecko) Version/12.1 Safari/605.1.15
+            matchObj = userAgent.match(/Version\/(\d+.\d+)/);
+            browserName = "Safari";
+            browserVersion = matchObj[1];
+        } else {
+            browserName = "unsupported";
+            browserVersion = "0.0";
+        }
+
+        let browser = `${browserName} ${browserVersion}. Please update your browser`;
+        if (browserName === "unsupported") {
+            browser = browserName;
+        }
+        let modalMsg = (`Your current browser is ${browser}. OPUS supports
+                        Firefox (${opus.browserSupport.firefox}+),
+                        Chrome (${opus.browserSupport.chrome}+),
+                        Safari (${opus.browserSupport.safari}+),
+                        and Opera (${opus.browserSupport.opera}+).`);
+        $("#op-browser-version-msg .modal-body").html(modalMsg);
+        browserName = browserName.toLowerCase();
+
+        if (opus.browserSupport[browserName] === undefined) {
+            $("#op-browser-version-msg").modal("show");
+            return false;
+        } else {
+            if (parseFloat(browserVersion) < opus.browserSupport[browserName]) {
+                $("#op-browser-version-msg").modal("show");
+                return false;
+            }
+        }
+        return true;
+    },
+
+    checkBrowserSize: function() {
+        /**
+         * Check if browser width is less than 1280px or height is less
+         * than 275px. If so, display a modal to inform the user to
+         * resize the browser size.
+         */
+        let modalMsg = (`Please resize your browser. OPUS works best with a browser
+                        size of at least ${opus.browserSupport.width} pixels by
+                        ${opus.browserSupport.height} pixels.`);
+        $("#op-browser-size-msg .modal-body").html(modalMsg);
+        if ($(window).width() < opus.browserSupport.width ||
+            $(window).height() < opus.browserSupport.height) {
+            $("#op-browser-size-msg").modal("show");
+        } else {
+            $("#op-browser-size-msg").modal("hide");
+        }
+    },
+
+    checkCookies: function() {
+        /**
+         * Check widgets cookie to determine if the user is a first time
+         * visitor. If so, we display a guide page.
+         * Note: we will call __help/splash.html api in the future to
+         * display the guide page. For now, we just show a modal.
+         */
+        if ($.cookie("visited") === undefined ||
+            $.cookie("visited") < opus.splashVersion) {
+            // set the cookie for the first time user
+            $.cookie("visited", opus.splashVersion);
+            let url = "/opus/__help/splash.html";
+            $.ajax({
+                url: url,
+                dataType: "html",
+                success: function(page) {
+                    $("#op-new-user-msg .modal-body").html(page);
+                    $("#op-new-user-msg").modal("show");
+                }
+            });
+        }
+    }
 }; // end opus namespace
 
 $(document).ready(function() {
-    // Call normalized url api first
-    // Rest of initialization prcoess will be performed afterwards
-    opus.normalizedURLAPICall();
+    if (opus.isBrowserSupported()) {
+        opus.checkCookies();
+        opus.checkBrowserSize();
+        // Call normalized url api first
+        // Rest of initialization prcoess will be performed afterwards
+        opus.normalizedURLAPICall();
+    }
 });
