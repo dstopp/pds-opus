@@ -131,8 +131,29 @@ var o_mutationObserver = {
         let helpPanelObserver = new MutationObserver(function(mutationsList) {
             mutationsList.forEach((mutation, idx) => {
                 //ignore attribute change in ps to avoid infinite loop of callback function caused by ps update
-                if (!mutation.target.classList.value.match(/ps/)) {
+                // if the FAQ item is collapsing, just adjust the height for the PS and move on..
+                if (mutation.target.classList.value.match(/collapse/)) {
                     adjustHelpPanelHeight();
+                } else {
+                    if (!mutation.target.classList.value.match(/ps/)) {
+                        opus.adjustHelpPanelHeight();
+                        // If a collapse/expand happened (attribute changes),
+                        // we only update ps at the last mutation when the animation
+                        // finishes and class/style are finalized.
+                        // Note we call the original version here, not the debounced
+                        // version, because we need the PS to be visible instantly in
+                        // order for scrollTop to work below.
+                        let helpElement = $(mutation.target).next()
+                        if (!helpElement.isOnScreen("#op-help-panel", 0)) {
+                            let containerHeight = opus.calculatHelpPanelHeight();
+                            let containerTop = $("#op-help-panel .card-body").offset().top;
+                            let containerBottom = containerHeight + containerTop;
+                            let elementTop = helpElement.offset().top;
+                            let elementHeight = helpElement.outerHeight();
+                            let newScrollPosition = $("#op-help-panel .card-body").scrollTop() + (elementTop + elementHeight - containerBottom);
+                            $("#op-help-panel .card-body").scrollTop(newScrollPosition);
+                        }
+                    }
                 }
             });
         });

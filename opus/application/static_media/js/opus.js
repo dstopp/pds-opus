@@ -420,15 +420,22 @@ var opus = {
         }
     },
 
+    calculatHelpPanelHeight: function() {
+        let footerHeight = $(".app-footer").outerHeight();
+        // we want the help panel to overlay the main nav about 50%, so the .5 is a bit of 'slop' to account for that
+        let mainNavHeight = $("#op-main-nav").outerHeight() * .5;
+        let cardHeaderHeight = $("#op-help-panel .card-header").outerHeight();
+        let totalNonGalleryHeight = footerHeight + mainNavHeight + cardHeaderHeight;
+        return $(window).height()-totalNonGalleryHeight;
+    },
+
     adjustHelpPanelHeight: function() {
         /**
          * Set the height of the "Help" panel based on the browser size.
          */
-        let height = $(window).height()-120;
+        let height = opus.calculatHelpPanelHeight();
         $("#op-help-panel .card-body").css("height", height);
         if (opus.helpScrollbar) {
-            // Make scrollbar always start from top
-            $("#op-help-panel .card-body").scrollTop(0);
             opus.helpScrollbar.update();
         }
     },
@@ -753,6 +760,10 @@ var opus = {
             success: function(page) {
                 $("#op-help-panel .loader").hide();
                 $("#op-help-panel .op-card-contents").html(page);
+                $('.op-faq-question a[href*="#"]').on('click', function(e) {
+                    let temp = e;
+                     e.preventDefault()
+                });
             }
         });
     },
