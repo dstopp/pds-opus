@@ -422,8 +422,7 @@ var opus = {
 
     calculatHelpPanelHeight: function() {
         let footerHeight = $(".app-footer").outerHeight();
-        // we want the help panel to overlay the main nav about 50%, so the .5 is a bit of 'slop' to account for that
-        let mainNavHeight = $("#op-main-nav").outerHeight() * .5;
+        let mainNavHeight = $("#op-main-nav").outerHeight();
         let cardHeaderHeight = $("#op-help-panel .card-header").outerHeight();
         let totalNonGalleryHeight = footerHeight + mainNavHeight + cardHeaderHeight;
         return $(window).height()-totalNonGalleryHeight;
