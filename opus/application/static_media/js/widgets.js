@@ -50,6 +50,7 @@ var o_widgets = {
     addWidgetBehaviors: function() {
         $("#op-search-widgets").sortable({
             items: "> li",
+            handle: ".card-title",
             cursor: "move",
             // we need the clone so that widgets in url gets changed only when sorting is stopped
             // Note: this will make radio buttons deselected when a widget with radio buttons is dragged.
