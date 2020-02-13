@@ -231,16 +231,22 @@ var o_selectMetadata = {
     },
 
     addColumn: function(slug) {
+        let success = true;
         let menuSelector = `#op-select-metadata .op-all-metadata-column a[data-slug=${slug}]`;
-        o_menu.markMenuItem(menuSelector);
+        if ($(menuSelector).length !== 0) {
+            o_menu.markMenuItem(menuSelector);
 
-        let label = $(menuSelector).data("qualifiedlabel");
-        let info = `<i class="fas fa-info-circle" title="${$(menuSelector).find('*[title]').attr("title")}"></i>`;
-        let html = `<li id="cchoose__${slug}" class="ui-sortable-handle"><span class="op-selected-metadata-info">&nbsp;${info}</span>${label}<span class="op-selected-metadata-unselect"><i class="far fa-trash-alt"></span></li>`;
-        $(".op-selected-metadata-column > ul").append(html);
-        if ($(".op-selected-metadata-column li").length > 1) {
-            $(".op-selected-metadata-column .op-selected-metadata-unselect").show();
+            let label = $(menuSelector).data("qualifiedlabel");
+            let info = `<i class="fas fa-info-circle" title="${$(menuSelector).find('*[title]').attr("title")}"></i>`;
+            let html = `<li id="cchoose__${slug}" class="ui-sortable-handle"><span class="op-selected-metadata-info">&nbsp;${info}</span>${label}<span class="op-selected-metadata-unselect"><i class="far fa-trash-alt"></span></li>`;
+            $(".op-selected-metadata-column > ul").append(html);
+            if ($(".op-selected-metadata-column li").length > 1) {
+                $(".op-selected-metadata-column .op-selected-metadata-unselect").show();
+            }
+        } else {
+            success = false;
         }
+        return success;
     },
 
     removeColumn: function(slug) {
@@ -288,7 +294,10 @@ var o_selectMetadata = {
 
         // add them back and set the check
         $.each(cols, function(index, slug) {
-            o_selectMetadata.addColumn(slug);
+            // if the slug is no longer a valid column, remove it from the list
+            if (o_selectMetadata.addColumn(slug) === false) {
+                opus.prefs.cols.splice(index, 1);
+            }
         });
     },
 
