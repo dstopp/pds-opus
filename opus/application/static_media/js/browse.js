@@ -1266,7 +1266,7 @@ var o_browse = {
                 $(`${tab} .op-data-table-view`).show();
             }
 
-            viewNamespace.totalObsCount = data.total_obs_count;
+            let dt = $(`${tab} .op-data-table`).dataTable().api();
 
             $.each(data.page, function(index, item) {
                 let opusId = item.opusid;
@@ -1319,6 +1319,7 @@ var o_browse = {
                     let slug = slugs[index];
                     row += `<td class="op-metadata-value" data-slug="${slug}">${cell}</td>`;
                 });
+                dt.row.add($(`${tr}${row}</tr>`));
                 tableHtml += `${tr}${row}</tr>`;
             });
 
@@ -1327,7 +1328,8 @@ var o_browse = {
             // is contiguous w/the existing block of observations, not just before/after...
             if (append) {
                 $(".gallery", tab).append(galleryHtml);
-                $(".op-data-table-view tbody", tab).append(tableHtml);
+                //$(".op-data-table-view tbody", tab).append(tableHtml);
+                dt.draw();
             } else {
                 $(".gallery", tab).prepend(galleryHtml);
                 $(".op-data-table-view tbody", tab).prepend(tableHtml);
@@ -1422,8 +1424,48 @@ var o_browse = {
             $(`${tab} .op-data-table-view thead tr`).append(`<th id="${slug}" scope="col" class="sticky-header"><div class="op-column-header">${columnOrdering}</div></th>`);
         });
 
+        let dt = $(`${tab} .op-data-table`).DataTable({
+            "dom":          "t",
+            "autoWidth":    true,
+            "paging":       false,
+            "ordering":     false,
+            "destroy":      true,
+            "responsive":   true,
+            "stripeClasses": [],
+            "colReorder": {
+                "enable":           true,
+                "fixedColumnsLeft": 2,
+                "realtime":         true,
+            },
+            "language": {
+                // do not display the dataTable messages for empty table...
+                "emptyTable":       "",
+                "loadingRecords":   "", // default Loading...
+                "zeroRecords":      "",
+            }
+        }).on("column-reorder", function ( e, settings, details ) {
+            let headerCell = $( dt.column( details.to ).header() );
+
+            headerCell.addClass( "reordered" );
+
+            setTimeout( function () {
+                headerCell.removeClass( "reordered" );
+            }, 2000 );
+        });
+
+        /*
+        let columnOrder = $.map($(this).find("th").not(".op-table-first-col"), function(n, i) {
+            return n.id;
+        });
+        // only bother if something actually changed...
+        if (!o_utils.areObjectsEqual(opus.prefs.cols, columnOrder)) {
+            opus.prefs.cols = o_utils.deepCloneObj(columnOrder);
+            o_hash.updateURLFromCurrentHash(); // This makes the changes visible to the user
+            o_sortMetadata.renderSortedDataFromBeginning();
+        }
+        $("tbody").animate({opacity: '1'});
+*/
         o_browse.initResizableColumn(tab);
-        o_browse.initDraggableColumn(tab);
         $("body").removeClass("op-prevent-pointer-events");
     },
 
@@ -1452,41 +1494,6 @@ var o_browse = {
                     // Make sure resizable handle is always at the right border of th
                     $(event.target).attr("style", "width: 100%");
                 }
-            },
-        });
-    },
-
-    initDraggableColumn: function(tab) {
-        // Return a helper with preserved width of cells
-        let fixHelper =
-        $(`${tab} .op-data-table thead`).sortable({
-            items: "th:not(.op-table-first-col)",
-            axis: "x",
-            cursor: "grab",
-            containment: "parent",
-            tolerance: "intersect",
-            helper: function(e, ui) {
-                let slug = ui.attr("id");
-                let td = $("tbody tr").find(`[data-slug="${slug}"]`);
-                $("tbody tr:first").find('td').each(function(column, td) {
-                    $(td).width($(td).width());
-                });
-                return ui;
-            },
-            start: function(e, ui) {
-                $("tbody").animate({opacity: '0.4'});
-            },
-            stop: function(event, ui) {;
-                let columnOrder = $.map($(this).find("th").not(".op-table-first-col"), function(n, i) {
-                    return n.id;
-                });
-                // only bother if something actually changed...
-                if (!o_utils.areObjectsEqual(opus.prefs.cols, columnOrder)) {
-                    opus.prefs.cols = o_utils.deepCloneObj(columnOrder);
-                    o_hash.updateURLFromCurrentHash(); // This makes the changes visible to the user
-                    o_sortMetadata.renderSortedDataFromBeginning();
-                }
-                $("tbody").animate({opacity: '1'});
             },
         });
     },

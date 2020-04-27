@@ -658,6 +658,18 @@ th.sticky-header {
     background-color: black;
 }
 
+
+
+table.dataTable.op-data-table  {
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+}
+
+/* this fixes the white strip from datatables */
+table.dataTable.op-data-table tbody tr {
+    background-color: rgba(0,0,0,0);
+}
+
 .op-data-table  {
     padding: 0;
 }
