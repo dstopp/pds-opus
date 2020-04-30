@@ -1431,11 +1431,10 @@ var o_browse = {
             "ordering":     false,
             "destroy":      true,
             "responsive":   true,
-            "stripeClasses": [],
             "colReorder": {
                 "enable":           true,
                 "fixedColumnsLeft": 2,
-                "realtime":         true,
+                "realtime":         false,
             },
             "language": {
                 // do not display the dataTable messages for empty table...
@@ -1444,13 +1443,13 @@ var o_browse = {
                 "zeroRecords":      "",
             }
         }).on("column-reorder", function ( e, settings, details ) {
-            let headerCell = $( dt.column( details.to ).header() );
-
-            headerCell.addClass( "reordered" );
-
-            setTimeout( function () {
-                headerCell.removeClass( "reordered" );
-            }, 2000 );
+            let reorderedColumns = [];
+            $(`${tab} .op-data-table th`).not(".op-table-first-col").each(function(index, obj) {
+                reorderedColumns.push(obj.id);
+            });
+            opus.prefs.cols = o_utils.deepCloneObj(reorderedColumns);
+            o_hash.updateURLFromCurrentHash(); // This makes the changes visible to the user
+            o_sortMetadata.renderSortedDataFromBeginning();
         });
 
         /*
