@@ -1449,7 +1449,6 @@ var o_browse = {
             });
             opus.prefs.cols = o_utils.deepCloneObj(reorderedColumns);
             o_hash.updateURLFromCurrentHash(); // This makes the changes visible to the user
-            o_sortMetadata.renderSortedDataFromBeginning();
         });
 
         /*
