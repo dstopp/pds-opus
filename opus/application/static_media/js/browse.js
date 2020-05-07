@@ -1467,6 +1467,23 @@ var o_browse = {
             });
         }
 
+        $(`${tab} .op-data-table`).dragtable({
+            dragaccept: "th:not(.op-table-first-col)",
+            cursor: "grab",
+        });
+    },
+
+    initDraggableColumnINITIAL: function(tab) {
+        function dragColumn(ui, action) {
+            let element = ui.item;
+            let slug = element.attr("id");
+            let func = (action === "sortstart" ? "addClass" : "removeClass");
+            $(`${tab} .op-data-table-colun-move-bar`)[func]("op-column-move");
+            $(`${tab} .op-data-table td[data-slug="${slug}"]`).each(function(column, td) {
+                $(td)[func]("op-column-move");
+            });
+        }
+
         $(`${tab} .op-data-table thead`).sortable({
             items: "th:not(.op-table-first-col)",
             axis: "x",
