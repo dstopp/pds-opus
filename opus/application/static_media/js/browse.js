@@ -1469,7 +1469,33 @@ var o_browse = {
 
         $(`${tab} .op-data-table`).dragtable({
             dragaccept: "th:not(.op-table-first-col)",
+            axis: "x",
             cursor: "grab",
+            containment: "parent",
+            helper: function(e, ui) {
+                let slug = ui.attr("id");
+                let td = $("tbody tr").find(`[data-slug="${slug}"]`);
+                $("tbody tr:first").find('td').each(function(column, td) {
+                    $(td).width($(td).width());
+                });
+                return ui;
+            },
+            start: function(e, ui) {
+                //dragColumn(ui, e.type);
+                $("tbody").animate({opacity: '0.4'});
+            },
+            stop: function(e, ui) {
+                let columnOrder = $.map($(this).find("th").not(".op-table-first-col"), function(n, i) {
+                    return n.id;
+                });
+                // only bother if something actually changed...
+                if (!o_utils.areObjectsEqual(opus.prefs.cols, columnOrder)) {
+                    opus.prefs.cols = o_utils.deepCloneObj(columnOrder);
+                    o_hash.updateURLFromCurrentHash(); // This makes the changes visible to the user
+                    o_sortMetadata.renderSortedDataFromBeginning();
+                }
+                $("tbody").animate({opacity: '1'});
+            },
         });
     },
 
