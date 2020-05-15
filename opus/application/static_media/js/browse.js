@@ -1419,7 +1419,7 @@ var o_browse = {
                                         `<span data-sort="${columnSorting}" class="op-column-ordering fas fa-sort${icon}">${columnOrderPostion}</span>`;
             let columnOrdering = `<a href="" data-slug="${slug}" ${orderToolTip} data-label="${label}">${lastWordWrappingGroup}</a>`;
 
-            $(`${tab} .op-data-table-view thead tr`).append(`<th id="${slug}" scope="col" class="sticky-header"><div class="op-column-header">${columnOrdering}</div></th>`);
+            $(`${tab} .op-data-table-view thead tr`).append(`<th id="${slug}" scope="col" class="op-draggable sticky-header"><div class="op-column-header">${columnOrdering}</div></th>`);
         });
 
         o_browse.initResizableColumn(tab);
@@ -1468,7 +1468,7 @@ var o_browse = {
         }
 
         $(`${tab} .op-data-table`).dragtable({
-            dragaccept: "th:not(.op-table-first-col)",
+            dragaccept: ".op-draggable",
             axis: "x",
             cursor: "grab",
             containment: "parent",

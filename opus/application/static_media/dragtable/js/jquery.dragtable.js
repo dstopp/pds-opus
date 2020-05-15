@@ -185,33 +185,18 @@
                   heightArr.push($(this).height());
               });
 
-              // compute width, no special handling for ie needed :-)
-              let widthArr = [];
-              // compute total width, needed for not wrapping around after the screen ends (floating)
-              let totalWidth = 0;
-              /* Find children thead and tbody.
-               * Only to process the immediate tr-children. Bugfix for inner tables
-               */
               let thtb = _this.originalTable.el.children();
               if (this.options.excludeFooter) {
                   thtb = thtb.not("tfoot");
               }
-              thtb.find("> tr > th").each(function(i, v) {
-                  let w = $(this).is(":visible") ? $(this).outerWidth() : 0;
-                  widthArr.push(w);
-                  totalWidth += w;
-              });
-              if (_this.options.exact) {
-                  let difference = totalWidth - _this.originalTable.el.outerWidth();
-                  widthArr[0] -= difference;
-              }
-              // one extra px on right and left side
-              totalWidth += 2;
+              let widthArr = [];
+              let tableWidth = this.originalTable.el.width();
 
-              let sortableHtml = `<ul class="dragtable-sortable" style="position:absolute; width:${totalWidth}px;">`;
+              let sortableHtml = `<ul class="dragtable-sortable" style="position:absolute; width:${tableWidth}px;">`;
               // assemble the needed html
               thtb.find("> tr > th").each(function(i, v) {
                   let width_li = $(this).is(":visible") ? $(this).outerWidth() : 0;
+                  widthArr[i] = width_li;
                   sortableHtml += `<li style="width:${width_li}px;">`;
                   sortableHtml += `<table ${attrsString}>`;
                   let row = thtb.find(`> tr > th:nth-child(${(i + 1)})`);
@@ -221,13 +206,15 @@
                   row.each(function(j) {
                       // TODO: May cause duplicate style-Attribute
                       let row_content = $(this).clone().wrap("<div></div>").parent().html();
-                      if (row_content.toLowerCase().indexOf("<th") === 0) {
+                      let isHeader = (row_content.toLowerCase().indexOf("<th") === 0);
+                      if (isHeader) {
                           sortableHtml += "<thead>";
                       }
                       sortableHtml += `<tr ${rowAttrsArr[j]} style="height:${heightArr[j]}px;">`;
                       sortableHtml += row_content;
+                      console.log(`${j}: ${row_content}`);
                       sortableHtml += "</tr>";
-                      if (row_content.toLowerCase().indexOf("<th") === 0) {
+                      if (isHeader) {
                           sortableHtml += "</thead>";
                       }
                   });
